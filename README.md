@@ -85,6 +85,27 @@ target:
   device_id: <device id of your amp>
 ```
 
+## Troubleshooting
+
+The amp is a dual-mode device: classic Bluetooth audio plus a BLE GATT
+control service on the same address. This integration only uses BLE.
+
+- Set the Bluetooth adapter's scanning mode to **Active** (or Auto) in
+  Home Assistant's Bluetooth integration options; the amp may only expose
+  its name/UUIDs in scan-response packets, which passive scans miss.
+- Don't `pair`/`connect` the amp from `bluetoothctl`: that creates a
+  classic (BR/EDR) link. Errors like `br-connection-key-missing` or
+  `br-connection-unknown` mean BlueZ is attempting a classic connection;
+  run `bluetoothctl remove <address>` and let HA rediscover it.
+- Disconnect the amp from your phone (turn its Bluetooth off or force-close
+  the Marshall Gateway app) while testing; the amp may not advertise while
+  connected elsewhere.
+- If the adapter keeps trying classic connections, use an ESPHome Bluetooth
+  proxy, which connects over BLE only.
+- Enable debug logging for `custom_components.marshall_code` and
+  `bleak_retry_connector`; connect failures are logged as warnings with the
+  underlying cause.
+
 ## Protocol summary
 
 - BLE GATT MIDI service `14839ac4-7d7e-415c-9a42-167340cf2339` with separate
