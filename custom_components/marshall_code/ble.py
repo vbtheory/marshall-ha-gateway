@@ -11,7 +11,7 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 from bleak.backends.device import BLEDevice
-from bleak.exc import BleakError
+from bleak.exc import BleakCharacteristicNotFoundError, BleakError
 from bleak_retry_connector import BleakClientWithServiceCache, establish_connection
 
 from .const import (
@@ -71,19 +71,48 @@ class MarshallCodeBLEClient:
             if self._on_disconnect is not None:
                 self._on_disconnect()
 
+        try:
+            await self._connect_and_subscribe(use_cache=True)
+        except BleakCharacteristicNotFoundError:
+            _LOGGER.warning(
+                "%s: notify characteristic missing, retrying with fresh service "
+                "discovery",
+                self.address,
+            )
+            await self.disconnect()
+            await self._connect_and_subscribe(use_cache=False)
+
+    async def _connect_and_subscribe(self, *, use_cache: bool) -> None:
         client = await establish_connection(
             BleakClientWithServiceCache,
             self._ble_device,
             self._ble_device.name or self.address,
-            disconnected_callback=_handle_disconnect,
-            use_services_cache=True,
+            disconnected_callback=self._handle_client_disconnect,
+            use_services_cache=use_cache,
             ble_device_callback=lambda: self._ble_device,
         )
         self._client = client
 
         self._sysex_buffer = bytearray()
-        await client.start_notify(NOTIFY_UUID, self._notification_handler)
+        try:
+            await client.start_notify(NOTIFY_UUID, self._notification_handler)
+        except BleakCharacteristicNotFoundError:
+            _LOGGER.warning(
+                "%s: GATT services (cache=%s): %s",
+                self.address,
+                use_cache,
+                {
+                    svc.uuid: [c.uuid for c in svc.characteristics]
+                    for svc in client.services
+                },
+            )
+            raise
         _LOGGER.debug("%s: connected and subscribed", self.address)
+
+    def _handle_client_disconnect(self, _client: BleakClientWithServiceCache) -> None:
+        _LOGGER.debug("%s: disconnected", self.address)
+        if self._on_disconnect is not None:
+            self._on_disconnect()
 
     async def disconnect(self) -> None:
         if self._client is not None:
