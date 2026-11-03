@@ -1,0 +1,60 @@
+{
+  "config": {
+    "flow_title": "{name}",
+    "step": {
+      "bluetooth_confirm": {
+        "description": "Do you want to set up {name}?"
+      },
+      "user": {
+        "description": "Choose a Marshall CODE amplifier to set up.",
+        "data": {
+          "address": "Device"
+        }
+      }
+    },
+    "abort": {
+      "already_configured": "Device is already configured",
+      "already_in_progress": "Configuration flow is already in progress",
+      "no_devices_found": "No unconfigured Marshall CODE amplifiers found",
+      "not_supported": "Device is not supported"
+    }
+  },
+  "services": {
+    "connect": {
+      "name": "Connect",
+      "description": "Manually attempts to connect to a Marshall CODE amplifier.",
+      "fields": {
+        "device_id": {
+          "name": "Device",
+          "description": "The Marshall CODE amplifier to connect to."
+        }
+      }
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "connected": { "name": "Connected" }
+    },
+    "sensor": {
+      "preset_name": { "name": "Preset name" },
+      "version": { "name": "DSP version" }
+    },
+    "switch": {
+      "pedal": { "name": "Pedal" },
+      "modulation": { "name": "Modulation" },
+      "delay": { "name": "Delay" },
+      "reverb": { "name": "Reverb" }
+    },
+    "number": {
+      "gate": { "name": "Gate" },
+      "gain": { "name": "Gain" },
+      "bass": { "name": "Bass" },
+      "middle": { "name": "Middle" },
+      "treble": { "name": "Treble" },
+      "volume": { "name": "Volume" }
+    },
+    "select": {
+      "preset": { "name": "Preset" }
+    }
+  }
+}

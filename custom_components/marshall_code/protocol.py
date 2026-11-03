@@ -367,13 +367,13 @@ def is_sysex_complete(buffer: bytes) -> bool:
 
 
 __all__ = [
+    "AVAILABLE_PRESETS",
+    "PRESET_NAME_CHAR_LIMIT",
     "AmpState",
     "DeviceInfo",
     "EffectState",
     "ProtocolParser",
     "VersionInfo",
-    "AVAILABLE_PRESETS",
-    "PRESET_NAME_CHAR_LIMIT",
     "enter_tuner_mode",
     "exit_tuner_mode",
     "is_sysex_complete",
