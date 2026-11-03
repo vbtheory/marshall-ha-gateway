@@ -20,10 +20,18 @@ _EFFECT_TRANSLATION_KEYS = {
     "REVERB": "reverb",
 }
 
+_EFFECT_ICONS = {
+    "PEDAL": "mdi:guitar-pick",
+    "MODULATION": "mdi:sine-wave",
+    "DELAY": "mdi:timer-outline",
+    "REVERB": "mdi:waveform",
+}
+
 EFFECT_DESCRIPTIONS = {
     device_type: SwitchEntityDescription(
         key=device_type.lower(),
         translation_key=_EFFECT_TRANSLATION_KEYS[device_type],
+        icon=_EFFECT_ICONS[device_type],
     )
     for device_type in EFFECT_DEVICE_TYPES
 }
