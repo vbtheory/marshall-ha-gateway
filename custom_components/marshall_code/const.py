@@ -19,14 +19,17 @@ WRITE_WITH_RESPONSE_UUID = "ba04c4b2-892b-43be-b69c-5d13f2195392"
 WRITE_WITHOUT_RESPONSE_UUID = "8b00ace7-eb0b-49b0-bbe9-9aee0a26e1a3"
 NOTIFY_UUID = "0734594a-a8e7-4b1a-a6b1-cd5243059a57"
 
-# Advertised service UUID while scanning/advertising (before connecting).
-# CODE1-family amps reuse the standard "Immediate Alert Service" 16-bit UUID;
-# CODE_LTE amps advertise a unique vendor UUID.
+# Advertised service UUID while scanning/advertising (before connecting), per
+# the decompiled app's `supported_amps.json`. Observed real-world CODE1 amps
+# don't reliably include this in their advertisement data though (the
+# standard "Immediate Alert Service" 16-bit UUID), so `manifest.json`'s
+# `bluetooth` discovery matchers intentionally key on `local_name` alone -
+# requiring both would AND-combine into a matcher that can silently never
+# fire. Kept here for reference/future use (e.g. post-connect verification).
 ADVERTISED_SERVICE_UUID_CODE1 = "00001802-0000-1000-8000-00805f9b34fb"
 ADVERTISED_SERVICE_UUID_CODE_LTE = "3923cf40-7316-429a-5c41-7e7dc49a8314"
 
-# BLE local name prefixes used to recognise an amp among devices advertising
-# the (generic) CODE1 service UUID.
+# BLE local name prefixes used to recognise an amp while scanning.
 LOCAL_NAME_PREFIXES = ("CODE V01", "CODE V02", "CODE LTE")
 
 CONNECT_TIMEOUT = 15
