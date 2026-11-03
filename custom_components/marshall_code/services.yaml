@@ -1,0 +1,4 @@
+connect:
+  target:
+    device:
+      integration: marshall_code

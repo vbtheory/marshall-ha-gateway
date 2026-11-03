@@ -18,6 +18,7 @@ from __future__ import annotations
 import logging
 
 from homeassistant.components import bluetooth
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 
@@ -31,6 +32,8 @@ from .protocol import (
 )
 
 _LOGGER = logging.getLogger(__name__)
+
+type MarshallCodeConfigEntry = ConfigEntry["MarshallCodeCoordinator"]
 
 
 class MarshallCodeCoordinator:
@@ -151,4 +154,4 @@ class MarshallCodeCoordinator:
         await self._client.send(data, with_response=with_response)
 
 
-__all__ = ["MarshallCodeCoordinator"]
+__all__ = ["MarshallCodeConfigEntry", "MarshallCodeCoordinator"]
