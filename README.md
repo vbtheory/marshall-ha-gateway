@@ -141,6 +141,25 @@ target release tag, rather than by installing the full package locally.
 `custom_components.marshall_code` package entries so HA-independent
 submodules can still be imported and tested in isolation.
 
+### Releasing a new version (HACS)
+
+HACS tracks available updates via GitHub Releases, so a new version only
+shows up for users once both the manifest version and a matching release
+tag exist:
+
+1. Bump `"version"` in `custom_components/marshall_code/manifest.json`
+   (semver, no leading `v`).
+2. Commit on a branch and merge it to `main` via PR (`main` is protected).
+3. Tag the merge commit and push the tag:
+   ```bash
+   git checkout main && git pull
+   git tag vX.Y.Z
+   git push origin vX.Y.Z
+   ```
+4. `.github/workflows/release.yml` verifies the tag matches
+   `manifest.json` and publishes a GitHub Release automatically. HACS
+   then shows an update to anyone with an older version installed.
+
 ## Disclaimer
 
 This is an unofficial, community reverse-engineering project. It is not

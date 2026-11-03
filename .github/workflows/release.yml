@@ -1,0 +1,41 @@
+name: Release
+
+# Publishes a GitHub Release whenever a `v*` tag is pushed. HACS tracks
+# updates via GitHub Releases, so this is what makes new versions show up
+# as available updates for users who installed through HACS.
+#
+# Release flow:
+#   1. Bump "version" in custom_components/marshall_code/manifest.json.
+#   2. Commit it (on a branch, then PR/merge to main - it's protected).
+#   3. Tag the merge commit on main: `git tag vX.Y.Z && git push origin vX.Y.Z`.
+#   4. This workflow verifies the tag matches manifest.json and publishes
+#      the release automatically.
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Verify tag matches manifest.json version
+        run: |
+          tag_version="${GITHUB_REF_NAME#v}"
+          manifest_version="$(python3 -c "import json; print(json.load(open('custom_components/marshall_code/manifest.json'))['version'])")"
+          if [ "$tag_version" != "$manifest_version" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match manifest.json version $manifest_version"
+            exit 1
+          fi
+
+      - name: Create GitHub release
+        run: gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --generate-notes
+        env:
+          GH_TOKEN: ${{ github.token }}
