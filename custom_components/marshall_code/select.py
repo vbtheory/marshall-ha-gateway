@@ -22,6 +22,7 @@ from .protocol import set_active_preset
 PRESET_DESCRIPTION = SelectEntityDescription(
     key="preset",
     translation_key="preset",
+    icon="mdi:format-list-numbered",
 )
 
 _OPTIONS = [f"Preset {i + 1}" for i in range(AVAILABLE_PRESETS)]

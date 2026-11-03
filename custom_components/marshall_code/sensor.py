@@ -15,11 +15,13 @@ from .entity import MarshallCodeEntity
 PRESET_NAME_DESCRIPTION = SensorEntityDescription(
     key="preset_name",
     translation_key="preset_name",
+    icon="mdi:text",
 )
 
 VERSION_DESCRIPTION = SensorEntityDescription(
     key="version",
     translation_key="version",
+    icon="mdi:chip",
     entity_category=EntityCategory.DIAGNOSTIC,
 )
 

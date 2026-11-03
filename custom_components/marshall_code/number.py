@@ -7,6 +7,7 @@ from homeassistant.components.number import (
     NumberEntityDescription,
     NumberMode,
 )
+from homeassistant.const import PERCENTAGE
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
@@ -24,10 +25,22 @@ KNOB_TRANSLATION_KEYS = {
     "volume": "volume",
 }
 
+# Raw values are 0-100 (the app displays them scaled down to a 0-10 dial).
+KNOB_ICONS = {
+    "gate": "mdi:volume-off",
+    "gain": "mdi:guitar-electric",
+    "bass": "mdi:equalizer",
+    "middle": "mdi:equalizer",
+    "treble": "mdi:equalizer",
+    "volume": "mdi:volume-high",
+}
+
 KNOB_DESCRIPTIONS = {
     knob: NumberEntityDescription(
         key=knob,
         translation_key=KNOB_TRANSLATION_KEYS[knob],
+        icon=KNOB_ICONS[knob],
+        native_unit_of_measurement=PERCENTAGE,
         native_min_value=KNOB_MIN_VALUE,
         native_max_value=KNOB_MAX_VALUE,
         native_step=1,

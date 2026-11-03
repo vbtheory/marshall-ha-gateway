@@ -2,32 +2,88 @@
 
 A Home Assistant custom integration for **Marshall CODE-series guitar
 amplifiers** (CODE25/50/100, CODE1 combos/heads, CODE_LTE), controlling the
-amp over its built-in Bluetooth Low Energy connection — the same protocol
-used by the official "Marshall Gateway" mobile app.
+amp directly over its built-in Bluetooth Low Energy connection — the same
+protocol used by the official "Marshall Gateway" mobile app. No phone app,
+cloud account, or hub required.
 
-> **Status:** under active development. The BLE/MIDI protocol has been fully
-> reverse engineered from the official app; the Home Assistant integration is
-> being built incrementally, with regular milestone commits.
+> **Status:** functionally complete for the first release scope (see
+> [Entities](#entities) and [Services](#services) below). Not yet tested
+> against a physical amp — if you try it, please open an issue with what you
+> find. CI/hassfest validation and HACS release packaging are still pending.
 
 ## Why
 
 Marshall never published an HA integration or a public API for these amps.
 This project reverse engineers the Bluetooth protocol used by the official
-Android app (decompiled with `apktool`/`jadx`) to let Home Assistant discover,
-auto-connect to, and control a CODE amp directly — no phone app required.
+Android app (decompiled with `apktool`/`jadx`) so Home Assistant can discover,
+auto-connect to, and control a CODE amp directly.
 
-## Planned features
+## Installation
 
-- Auto-discovery and auto-connect using Home Assistant's built-in
-  `bluetooth` integration (no manual pairing flow) plus a manual
-  `marshall_code.connect` service for forcing a (re)connection attempt.
-- `binary_sensor` for BLE connection state.
-- `sensor` for the current preset name and firmware/version info.
-- `switch` entities for the 4 toggleable effect blocks (Pedal, Modulation,
-  Delay, Reverb) — mirrors the app's Home screen red effects bar.
-- `number` entities for the 6 main preamp knobs (Gate, Gain, Volume, Bass,
-  Middle, Treble) — mirrors the app's Home screen knob grid.
-- `select` entity to jump between the amp's up-to-100 onboard presets.
+### HACS (custom repository)
+
+1. In HACS, go to **Integrations → ⋮ → Custom repositories**.
+2. Add `https://github.com/vbtheory/marshall-ha-gateway` as an **Integration**.
+3. Install "Marshall CODE Amplifier", then restart Home Assistant.
+
+### Manual
+
+1. Copy `custom_components/marshall_code` into your Home Assistant
+   `config/custom_components/` directory.
+2. Restart Home Assistant.
+
+## Setup
+
+The amp is set up like any other Bluetooth device:
+
+- **Automatic:** if the amp is powered on and in range, Home Assistant's
+  `bluetooth` integration will discover it and show a notification under
+  **Settings → Devices & Services**. Click it, confirm, and you're done.
+- **Manual:** go to **Settings → Devices & Services → Add Integration →
+  Marshall CODE Amplifier**, and pick your amp from the list of currently
+  visible devices.
+
+Once set up, the integration keeps a persistent BLE connection open and
+auto-reconnects whenever the amp comes back into range (e.g. after being
+powered off/on) — there's no need to re-run the config flow.
+
+## Entities
+
+| Platform        | Entity               | Description                                                                 |
+|-----------------|-----------------------|-------------------------------------------------------------------------------|
+| `binary_sensor` | Connected             | Whether the BLE connection to the amp is currently up                        |
+| `sensor`        | Preset name           | Name of the currently active preset (+ `preset_index` attribute)             |
+| `sensor`        | DSP version           | DSP firmware version (+ serial number, hardware/bootloader/MCU/BT versions)   |
+| `switch`        | Pedal                 | Pedal effect block on/off (+ `model` attribute, e.g. "Compressor")           |
+| `switch`        | Modulation             | Modulation effect block on/off (+ `model` attribute, e.g. "Chorus")          |
+| `switch`        | Delay                 | Delay effect block on/off (+ `model` attribute, e.g. "Vintage")              |
+| `switch`        | Reverb                | Reverb effect block on/off (+ `model` attribute, e.g. "Room")                |
+| `number`        | Gate                  | Noise gate / threshold knob (0-100)                                          |
+| `number`        | Gain                  | Gain knob (0-100)                                                            |
+| `number`        | Bass                  | Bass knob (0-100)                                                            |
+| `number`        | Middle                | Middle knob (0-100)                                                          |
+| `number`        | Treble                | Treble knob (0-100)                                                          |
+| `number`        | Volume                | Volume knob (0-100)                                                          |
+| `select`        | Preset                | Jump directly to any of the amp's 100 onboard preset slots ("Preset 1"-"Preset 100") |
+
+These mirror the official app's Home screen: the preset header, the 6-knob
+grid for the currently selected preamp, and the 4 effect toggle icons.
+
+Knob values are raw MIDI CC values (0-100); the app displays these scaled
+down to a 0-10 dial on screen, but the underlying value is the same.
+
+## Services
+
+### `marshall_code.connect`
+
+Manually (re)connects to the amp, in case you don't want to wait for
+auto-connect (e.g. right after powering it on). Takes a `device_id` target.
+
+```yaml
+service: marshall_code.connect
+target:
+  device_id: <device id of your amp>
+```
 
 ## Protocol summary
 
@@ -40,19 +96,50 @@ auto-connect to, and control a CODE amp directly — no phone app required.
   parameters (Gate=0x53, Gain=0x46, Volume=0x4A, Bass=0x47, Middle=0x48,
   Treble=0x49); only the active model ID differs.
 - See `custom_components/marshall_code/const.py` and `protocol.py` for the
-  full, documented command set.
+  full, documented command set, including device-type and model-name lookup
+  tables for every preamp/power-amp/cabinet/effect model.
+
+## Architecture
+
+- `protocol.py` — pure-Python MIDI/SysEx message encode/decode, no Home
+  Assistant or BLE dependency. Fully unit tested against literal byte strings
+  extracted from the decompiled app.
+- `ble.py` — thin `bleak`/`bleak-retry-connector` wrapper: connect, discover
+  characteristics, subscribe, reassemble fragmented SysEx notifications.
+- `coordinator.py` — owns the BLE connection and parsed amp state for one
+  amp. Unlike most BLE integrations (which poll short-lived passive
+  advertisements), the amp needs a persistent, stateful GATT session kept
+  open for as long as it's in range — so this is a custom coordinator, not
+  HA's generic `ActiveBluetoothDataUpdateCoordinator`. It registers with HA's
+  `bluetooth` integration to auto-connect when the amp's advertisement is
+  seen, and pushes state changes to entities via a dispatcher signal.
+- `config_flow.py` — bluetooth-discovery and manual device-picker setup.
+- `entity.py` + platform modules — one base entity class shared by all
+  platforms, each subscribing to the coordinator's push updates.
+- `services.py` — the `marshall_code.connect` service.
 
 ## Development
 
+This integration's protocol/BLE logic can be developed and unit tested
+without a full `homeassistant` install (which pulls in a very large
+dependency tree). The dev venv only needs `bleak`, `pytest`, and `ruff`:
+
 ```bash
 python3 -m venv .venv
-.venv/bin/pip install pytest
+.venv/bin/pip install pytest ruff bleak bleak-retry-connector
 .venv/bin/python -m pytest tests/
+.venv/bin/ruff check custom_components/ tests/
 ```
 
-The `protocol.py` module has no Home Assistant or BLE dependency and is unit
-tested against byte-identical literal SysEx strings extracted from the
-decompiled app, so its correctness can be verified without any physical amp.
+`protocol.py` has zero Home Assistant/BLE imports and is tested directly.
+Modules that *do* import `homeassistant` (`coordinator.py`, `config_flow.py`,
+`__init__.py`, the entity platforms, ...) are syntax-checked and validated by
+reading the relevant APIs straight from the
+[`home-assistant/core`](https://github.com/home-assistant/core) source at the
+target release tag, rather than by installing the full package locally.
+`tests/conftest.py` registers lightweight fake `custom_components`/
+`custom_components.marshall_code` package entries so HA-independent
+submodules can still be imported and tested in isolation.
 
 ## Disclaimer
 
