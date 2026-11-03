@@ -149,6 +149,7 @@ class AmpState:
     device_info: DeviceInfo = field(default_factory=DeviceInfo)
     active_preset_index: int | None = None
     preset_name: str | None = None
+    preset_names: dict[int, str] = field(default_factory=dict)
     preamp_model: str | None = None
     power_amp_model: str | None = None
     cabinet_model: str | None = None
@@ -305,13 +306,23 @@ class ProtocolParser:
             and data[9] == SYSEX_BT_SUB_VERSION
         ):
             return self._handle_bluetooth_version(data)
-        if command in (SYSEX_CMD_ACTIVE_PRESET, SYSEX_CMD_INDEXED_PRESET) and (
-            subcommand == SYSEX_SUB_GET_REPLY
-        ):
+        if command == SYSEX_CMD_INDEXED_PRESET and subcommand == SYSEX_SUB_GET_REPLY:
+            if len(data) == 75 and data[0] == SYSEX_START and data[-1] == SYSEX_END:
+                name = data[10:28].decode("ascii", errors="replace").rstrip(" \x00")
+                self.state.preset_names[data[9]] = name
+                if data[9] == self.state.active_preset_index:
+                    self.state.preset_name = name
+                return {"preset_names"}
+            return set()
+        if command == SYSEX_CMD_ACTIVE_PRESET and subcommand == SYSEX_SUB_GET_REPLY:
             if _preset_from_sysex(data, self.state) is not None:
+                self.state.preset_names[self.state.active_preset_index] = (
+                    self.state.preset_name or ""
+                )
                 return {
                     "active_preset_index",
                     "preset_name",
+                    "preset_names",
                     "knobs",
                     "effects",
                     "preamp_model",

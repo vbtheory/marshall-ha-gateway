@@ -40,21 +40,27 @@ async def async_setup_entry(
 class MarshallCodePresetSelect(MarshallCodeEntity, SelectEntity):
     """Choose the active preset slot (0-based on the wire, 1-based in the UI)."""
 
-    _attr_options = _OPTIONS
-
     def __init__(self, coordinator: MarshallCodeCoordinator) -> None:
         super().__init__(coordinator, PRESET_DESCRIPTION)
+
+    @property
+    def options(self) -> list[str]:
+        names = self.coordinator.state.preset_names
+        return [
+            f"{i + 1}: {names[i]}" if names.get(i) else _OPTIONS[i]
+            for i in range(AVAILABLE_PRESETS)
+        ]
 
     @property
     def current_option(self) -> str | None:
         index = self.coordinator.state.active_preset_index
         if index is None or not (0 <= index < AVAILABLE_PRESETS):
             return None
-        return _OPTIONS[index]
+        return self.options[index]
 
     async def async_select_option(self, option: str) -> None:
         await self.coordinator.async_send(
-            set_active_preset(_OPTIONS.index(option)), with_response=False
+            set_active_preset(self.options.index(option)), with_response=False
         )
 
 

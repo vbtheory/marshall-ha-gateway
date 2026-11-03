@@ -15,6 +15,7 @@ long as the amp is in range. This coordinator:
 """
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
 
@@ -24,12 +25,13 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 
 from .ble import MarshallCodeBLEClient
-from .const import SIGNAL_MARSHALL_CODE_UPDATE
+from .const import AVAILABLE_PRESETS, SIGNAL_MARSHALL_CODE_UPDATE
 from .protocol import (
     AmpState,
     ProtocolParser,
     request_active_preset,
     request_device_info,
+    request_indexed_preset,
 )
 from .scanners import get_ble_device, log_scanners
 
@@ -57,6 +59,7 @@ class MarshallCodeCoordinator:
         self._client: MarshallCodeBLEClient | None = None
         self._unregister_bluetooth_callback: callback | None = None
         self._connecting = False
+        self._sync_task: asyncio.Task | None = None
         self.connected = False
 
     @property
@@ -153,6 +156,7 @@ class MarshallCodeCoordinator:
 
             await self._client.send(request_device_info())
             await self._client.send(request_active_preset())
+            self._sync_task = self.hass.async_create_task(self._async_sync_presets())
             return True
         except Exception as err:
             _LOGGER.warning(
@@ -169,7 +173,23 @@ class MarshallCodeCoordinator:
         finally:
             self._connecting = False
 
+    async def _async_sync_presets(self) -> None:
+        """Fetch every preset slot so names are known without user action."""
+        try:
+            for index in range(AVAILABLE_PRESETS):
+                if not self.connected or self._client is None:
+                    return
+                await self._client.send(request_indexed_preset(index))
+                await asyncio.sleep(0.05)
+            if self.connected and self._client is not None:
+                await self._client.send(request_active_preset())
+        except Exception as err:
+            _LOGGER.debug("%s: preset sync failed: %s", self.address, err)
+
     async def async_disconnect(self) -> None:
+        if self._sync_task is not None:
+            self._sync_task.cancel()
+            self._sync_task = None
         if self._client is not None:
             await self._client.disconnect()
         self.connected = False
@@ -197,6 +217,11 @@ class MarshallCodeCoordinator:
     @callback
     def _handle_message(self, data: bytes) -> None:
         updated = self._parser.handle_message(data)
+        if "active_preset_index" in updated and not updated - {
+            "active_preset_index"
+        }:
+            # Program change from the amp: the full preset must be re-read.
+            self.hass.async_create_task(self.async_send(request_active_preset()))
         if updated:
             self._async_signal_update()
 
