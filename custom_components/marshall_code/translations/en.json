@@ -30,5 +30,31 @@
         }
       }
     }
+  },
+  "entity": {
+    "binary_sensor": {
+      "connected": { "name": "Connected" }
+    },
+    "sensor": {
+      "preset_name": { "name": "Preset name" },
+      "version": { "name": "DSP version" }
+    },
+    "switch": {
+      "pedal": { "name": "Pedal" },
+      "modulation": { "name": "Modulation" },
+      "delay": { "name": "Delay" },
+      "reverb": { "name": "Reverb" }
+    },
+    "number": {
+      "gate": { "name": "Gate" },
+      "gain": { "name": "Gain" },
+      "bass": { "name": "Bass" },
+      "middle": { "name": "Middle" },
+      "treble": { "name": "Treble" },
+      "volume": { "name": "Volume" }
+    },
+    "select": {
+      "preset": { "name": "Preset" }
+    }
   }
 }
