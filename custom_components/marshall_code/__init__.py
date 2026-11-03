@@ -4,7 +4,7 @@ from __future__ import annotations
 from homeassistant.const import CONF_ADDRESS, Platform
 from homeassistant.core import HomeAssistant
 
-from .const import CONF_SOURCE
+from .const import CONF_PAIR, CONF_SOURCE
 from .coordinator import MarshallCodeConfigEntry, MarshallCodeCoordinator
 from .services import async_setup_services
 
@@ -28,7 +28,12 @@ async def async_setup_entry(
 ) -> bool:
     """Set up a Marshall CODE amplifier from a config entry."""
     source = entry.options.get(CONF_SOURCE, entry.data.get(CONF_SOURCE))
-    coordinator = MarshallCodeCoordinator(hass, entry.data[CONF_ADDRESS], source)
+    coordinator = MarshallCodeCoordinator(
+        hass,
+        entry.data[CONF_ADDRESS],
+        source,
+        entry.options.get(CONF_PAIR, entry.data.get(CONF_PAIR, False)),
+    )
     entry.runtime_data = coordinator
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)

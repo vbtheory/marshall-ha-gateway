@@ -42,9 +42,14 @@ class MarshallCodeCoordinator:
     """Owns the BLE connection and amp protocol state for one amp."""
 
     def __init__(
-        self, hass: HomeAssistant, address: str, source: str | None = None
+        self,
+        hass: HomeAssistant,
+        address: str,
+        source: str | None = None,
+        pair: bool = False,
     ) -> None:
         self.hass = hass
+        self.pair = pair
         self.source = source
         self.address = address
         self.state = AmpState()
@@ -136,6 +141,7 @@ class MarshallCodeCoordinator:
                     on_message=self._handle_message,
                     on_disconnect=self._handle_disconnect,
                     source=self.source,
+                    pair=self.pair,
                 )
             else:
                 self._client.update_ble_device(ble_device)

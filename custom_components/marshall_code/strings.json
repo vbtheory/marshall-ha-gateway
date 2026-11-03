@@ -21,7 +21,11 @@
         "title": "Choose Bluetooth controller",
         "description": "The connection failed with automatic selection. Pick the adapter or Bluetooth proxy closest to the amp and try again. Scanners that currently see the amp are listed with their signal strength.",
         "data": {
-          "source": "Bluetooth controller"
+          "source": "Bluetooth controller",
+          "pair": "Pair (bond) with the amp when connecting"
+        },
+        "data_description": {
+          "pair": "Enable if the amp only accepts connections from a bonded device (e.g. it asks for a pairing code). Works through ESPHome proxies and local adapters."
         }
       }
     },
@@ -112,7 +116,11 @@
         "title": "Bluetooth controller",
         "description": "Choose which adapter or Bluetooth proxy connects to the amp. The integration reloads after saving.",
         "data": {
-          "source": "Bluetooth controller"
+          "source": "Bluetooth controller",
+          "pair": "Pair (bond) with the amp when connecting"
+        },
+        "data_description": {
+          "pair": "Enable if the amp only accepts connections from a bonded device (e.g. it asks for a pairing code). Works through ESPHome proxies and local adapters."
         }
       }
     },
