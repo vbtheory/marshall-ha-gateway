@@ -16,6 +16,13 @@
         "data": {
           "address": "MAC address"
         }
+      },
+      "controller": {
+        "title": "Choose Bluetooth controller",
+        "description": "The connection failed with automatic selection. Pick the adapter or Bluetooth proxy closest to the amp and try again. Scanners that currently see the amp are listed with their signal strength.",
+        "data": {
+          "source": "Bluetooth controller"
+        }
       }
     },
     "abort": {
@@ -97,6 +104,25 @@
       "preset": {
         "name": "Preset"
       }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Bluetooth controller",
+        "description": "Choose which adapter or Bluetooth proxy connects to the amp. The integration reloads after saving.",
+        "data": {
+          "source": "Bluetooth controller"
+        }
+      }
+    },
+    "error": {
+      "not_visible": "The amp isn't visible to any Bluetooth adapter or proxy. Wake the amp, disconnect it from your phone, move it closer to the adapter/ESPHome proxy and try again.",
+      "not_connectable": "The amp is only seen by a passive scanner. Set the adapter to Active scanning, or use an ESPHome Bluetooth proxy with `active: true`.",
+      "cannot_connect": "Couldn't open a Bluetooth connection to the amp. Make sure nothing else (e.g. the Marshall Gateway app) is connected to it, then try again.",
+      "missing_characteristic": "Connected, but the amp doesn't expose the expected control characteristics. Enable debug logging and check the 'GATT services' warning.",
+      "no_response": "Connected, but the amp didn't answer. Power-cycle the amp and try again.",
+      "invalid_address": "That isn't a valid MAC address (expected format AA:BB:CC:DD:EE:FF)."
     }
   }
 }

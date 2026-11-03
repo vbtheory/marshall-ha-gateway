@@ -43,3 +43,35 @@ def log_scanners(hass: HomeAssistant, address: str, reason: str) -> None:
         reason,
         "\n  ".join(describe_scanners(hass, address)),
     )
+
+
+def connectable_scanner_choices(hass: HomeAssistant, address: str) -> dict[str, str]:
+    """Source -> label for every connectable scanner (adapters and proxies)."""
+    seen = {
+        device.scanner.source: device.advertisement.rssi
+        for device in bluetooth.async_scanner_devices_by_address(
+            hass, address, connectable=True
+        )
+    }
+    choices: dict[str, str] = {}
+    for scanner in bluetooth.async_current_scanners(hass):
+        if not scanner.connectable:
+            continue
+        rssi = seen.get(scanner.source)
+        status = f"sees amp, RSSI {rssi}" if rssi is not None else "doesn't see amp"
+        choices[scanner.source] = (
+            f"{getattr(scanner, 'name', scanner.source)} ({scanner.source}) - {status}"
+        )
+    return choices
+
+
+def get_ble_device(hass: HomeAssistant, address: str, source: str | None):
+    """The BLEDevice for `address`, optionally only via the scanner `source`."""
+    if source is None:
+        return bluetooth.async_ble_device_from_address(hass, address, connectable=True)
+    for device in bluetooth.async_scanner_devices_by_address(
+        hass, address, connectable=True
+    ):
+        if device.scanner.source == source:
+            return device.ble_device
+    return None

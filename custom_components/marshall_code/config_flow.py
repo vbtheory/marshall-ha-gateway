@@ -19,13 +19,21 @@ from homeassistant.components.bluetooth import (
     BluetoothServiceInfoBleak,
     async_discovered_service_info,
 )
-from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
+from homeassistant.config_entries import (
+    ConfigEntry,
+    ConfigFlow,
+    ConfigFlowResult,
+    OptionsFlow,
+)
 from homeassistant.const import CONF_ADDRESS
+from homeassistant.core import callback
 
-from .const import DOMAIN, LOCAL_NAME_PREFIXES
+from .const import CONF_SOURCE, DOMAIN, LOCAL_NAME_PREFIXES
+from .scanners import connectable_scanner_choices
 from .verify import async_verify_amp
 
 MANUAL_ENTRY = "__manual__"
+AUTOMATIC = "__auto__"
 MAC_RE = re.compile(r"^([0-9A-F]{2}:){5}[0-9A-F]{2}$")
 
 
@@ -43,6 +51,59 @@ class MarshallCodeConfigFlow(ConfigFlow, domain=DOMAIN):
     def __init__(self) -> None:
         self._discovery_info: BluetoothServiceInfoBleak | None = None
         self._discovered_devices: dict[str, BluetoothServiceInfoBleak] = {}
+        self._pending: tuple[str, str] | None = None
+        self._pending_error: str | None = None
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(config_entry: ConfigEntry) -> OptionsFlow:
+        return MarshallCodeOptionsFlow()
+
+    async def _async_verify_or_choose_controller(
+        self, address: str, title: str
+    ) -> ConfigFlowResult | str:
+        """Verify with automatic controller selection.
+
+        On success create the entry; on failure remember the amp and return
+        the error so the caller can show it (the controller picker follows).
+        """
+        error = await async_verify_amp(self.hass, address)
+        if error is None:
+            return self.async_create_entry(title=title, data={CONF_ADDRESS: address})
+        self._pending = (address, title)
+        self._pending_error = error
+        return error
+
+    async def async_step_controller(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """After a failed connection, let the user pick the Bluetooth controller."""
+        assert self._pending is not None
+        address, title = self._pending
+        errors: dict[str, str] = {}
+        if self._pending_error:
+            errors["base"] = self._pending_error
+            self._pending_error = None
+        if user_input is not None:
+            choice = user_input[CONF_SOURCE]
+            source = None if choice == AUTOMATIC else choice
+            error = await async_verify_amp(self.hass, address, source)
+            if error is None:
+                data = {CONF_ADDRESS: address}
+                if source is not None:
+                    data[CONF_SOURCE] = source
+                return self.async_create_entry(title=title, data=data)
+            errors["base"] = error
+
+        choices = {AUTOMATIC: "Automatic (let Home Assistant choose)"}
+        choices.update(connectable_scanner_choices(self.hass, address))
+        return self.async_show_form(
+            step_id="controller",
+            errors=errors,
+            data_schema=vol.Schema(
+                {vol.Required(CONF_SOURCE, default=AUTOMATIC): vol.In(choices)}
+            ),
+        )
 
     async def async_step_bluetooth(
         self, discovery_info: BluetoothServiceInfoBleak
@@ -64,13 +125,12 @@ class MarshallCodeConfigFlow(ConfigFlow, domain=DOMAIN):
         discovery_info = self._discovery_info
         errors: dict[str, str] = {}
         if user_input is not None:
-            error = await async_verify_amp(self.hass, discovery_info.address)
-            if error is None:
-                return self.async_create_entry(
-                    title=discovery_info.name,
-                    data={CONF_ADDRESS: discovery_info.address},
-                )
-            errors["base"] = error
+            result = await self._async_verify_or_choose_controller(
+                discovery_info.address, discovery_info.name
+            )
+            if not isinstance(result, str):
+                return result
+            return await self.async_step_controller()
         else:
             self._set_confirm_only()
 
@@ -93,13 +153,12 @@ class MarshallCodeConfigFlow(ConfigFlow, domain=DOMAIN):
                 return await self.async_step_manual()
             await self.async_set_unique_id(address, raise_on_progress=False)
             self._abort_if_unique_id_configured()
-            error = await async_verify_amp(self.hass, address)
-            if error is None:
-                discovery_info = self._discovered_devices[address]
-                return self.async_create_entry(
-                    title=discovery_info.name, data={CONF_ADDRESS: address}
-                )
-            errors["base"] = error
+            result = await self._async_verify_or_choose_controller(
+                address, self._discovered_devices[address].name
+            )
+            if not isinstance(result, str):
+                return result
+            return await self.async_step_controller()
 
         current_addresses = self._async_current_ids(include_ignore=False)
         for discovery_info in async_discovered_service_info(self.hass, False):
@@ -137,20 +196,47 @@ class MarshallCodeConfigFlow(ConfigFlow, domain=DOMAIN):
             else:
                 await self.async_set_unique_id(address, raise_on_progress=False)
                 self._abort_if_unique_id_configured()
-                error = await async_verify_amp(self.hass, address)
-                if error is None:
-                    info = self._discovered_devices.get(address)
-                    return self.async_create_entry(
-                        title=info.name if info else f"Marshall CODE {address}",
-                        data={CONF_ADDRESS: address},
-                    )
-                errors["base"] = error
+                info = self._discovered_devices.get(address)
+                result = await self._async_verify_or_choose_controller(
+                    address, info.name if info else f"Marshall CODE {address}"
+                )
+                if not isinstance(result, str):
+                    return result
+                return await self.async_step_controller()
 
         return self.async_show_form(
             step_id="manual",
             errors=errors,
             data_schema=vol.Schema(
                 {vol.Required(CONF_ADDRESS, default=default): str}
+            ),
+        )
+
+
+class MarshallCodeOptionsFlow(OptionsFlow):
+    """Change which Bluetooth controller the amp connects through."""
+
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        address = self.config_entry.data[CONF_ADDRESS]
+        if user_input is not None:
+            choice = user_input[CONF_SOURCE]
+            return self.async_create_entry(
+                data={} if choice == AUTOMATIC else {CONF_SOURCE: choice}
+            )
+
+        current = self.config_entry.options.get(
+            CONF_SOURCE, self.config_entry.data.get(CONF_SOURCE, AUTOMATIC)
+        )
+        choices = {AUTOMATIC: "Automatic (let Home Assistant choose)"}
+        choices.update(connectable_scanner_choices(self.hass, address))
+        if current not in choices:
+            choices[current] = f"{current} (not currently available)"
+        return self.async_show_form(
+            step_id="init",
+            data_schema=vol.Schema(
+                {vol.Required(CONF_SOURCE, default=current): vol.In(choices)}
             ),
         )
 

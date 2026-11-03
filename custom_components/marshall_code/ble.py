@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from bleak.backends.device import BLEDevice
 from bleak.exc import BleakCharacteristicNotFoundError, BleakError
@@ -33,6 +33,46 @@ MessageCallback = Callable[[bytes], None]
 DisconnectCallback = Callable[[], None]
 
 
+class _SourceFilteredManager:
+    """Proxy for HA's Bluetooth manager exposing only one scanner's devices."""
+
+    def __init__(self, manager: Any, source: str) -> None:
+        self._manager = manager
+        self._source = source
+
+    def async_scanner_devices_by_address(
+        self, address: str, connectable: bool
+    ) -> list[Any]:
+        return [
+            device
+            for device in self._manager.async_scanner_devices_by_address(
+                address, connectable
+            )
+            if device.scanner.source == self._source
+        ]
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._manager, name)
+
+
+def _pinned_client_class(source: str | None) -> type[BleakClientWithServiceCache]:
+    """Client class that only connects through the scanner/proxy `source`.
+
+    HA's client wrapper normally picks the best scanner itself; this narrows
+    that choice to the one the user selected.
+    """
+    if source is None:
+        return BleakClientWithServiceCache
+
+    class PinnedClient(BleakClientWithServiceCache):
+        def _async_get_best_available_backend_and_device(self, manager: Any) -> Any:
+            return super()._async_get_best_available_backend_and_device(
+                _SourceFilteredManager(manager, source)
+            )
+
+    return PinnedClient
+
+
 class MarshallCodeBLEClient:
     """Maintains a persistent GATT connection to a single amp."""
 
@@ -41,7 +81,9 @@ class MarshallCodeBLEClient:
         ble_device: BLEDevice,
         on_message: MessageCallback,
         on_disconnect: DisconnectCallback | None = None,
+        source: str | None = None,
     ) -> None:
+        self._source = source
         self._ble_device = ble_device
         self._on_message = on_message
         self._on_disconnect = on_disconnect
@@ -88,7 +130,7 @@ class MarshallCodeBLEClient:
 
     async def _connect_and_subscribe(self, *, use_cache: bool) -> None:
         client = await establish_connection(
-            BleakClientWithServiceCache,
+            _pinned_client_class(self._source),
             self._ble_device,
             self._ble_device.name or self.address,
             disconnected_callback=self._handle_client_disconnect,
