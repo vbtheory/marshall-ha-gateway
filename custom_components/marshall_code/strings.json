@@ -3,7 +3,7 @@
     "flow_title": "{name}",
     "step": {
       "bluetooth_confirm": {
-        "description": "Do you want to set up {name}?"
+        "description": "Do you want to set up {name}? The integration will connect to the amp to verify it works."
       },
       "user": {
         "description": "Choose a Marshall CODE amplifier to set up.",
@@ -17,6 +17,13 @@
       "already_in_progress": "Configuration flow is already in progress",
       "no_devices_found": "No unconfigured Marshall CODE amplifiers found",
       "not_supported": "Device is not supported"
+    },
+    "error": {
+      "not_visible": "The amp isn't visible to any Bluetooth adapter or proxy. Wake the amp, disconnect it from your phone, move it closer to the adapter/ESPHome proxy and try again.",
+      "not_connectable": "The amp is only seen by a passive scanner. Set the adapter to Active scanning, or use an ESPHome Bluetooth proxy with `active: true`.",
+      "cannot_connect": "Couldn't open a Bluetooth connection to the amp. Make sure nothing else (e.g. the Marshall Gateway app) is connected to it, then try again.",
+      "missing_characteristic": "Connected, but the amp doesn't expose the expected control characteristics. Enable debug logging and check the 'GATT services' warning.",
+      "no_response": "Connected, but the amp didn't answer. Power-cycle the amp and try again."
     }
   },
   "services": {
@@ -33,28 +40,56 @@
   },
   "entity": {
     "binary_sensor": {
-      "connected": { "name": "Connected" }
+      "connected": {
+        "name": "Connected"
+      }
     },
     "sensor": {
-      "preset_name": { "name": "Preset name" },
-      "version": { "name": "DSP version" }
+      "preset_name": {
+        "name": "Preset name"
+      },
+      "version": {
+        "name": "DSP version"
+      }
     },
     "switch": {
-      "pedal": { "name": "Pedal" },
-      "modulation": { "name": "Modulation" },
-      "delay": { "name": "Delay" },
-      "reverb": { "name": "Reverb" }
+      "pedal": {
+        "name": "Pedal"
+      },
+      "modulation": {
+        "name": "Modulation"
+      },
+      "delay": {
+        "name": "Delay"
+      },
+      "reverb": {
+        "name": "Reverb"
+      }
     },
     "number": {
-      "gate": { "name": "Gate" },
-      "gain": { "name": "Gain" },
-      "bass": { "name": "Bass" },
-      "middle": { "name": "Middle" },
-      "treble": { "name": "Treble" },
-      "volume": { "name": "Volume" }
+      "gate": {
+        "name": "Gate"
+      },
+      "gain": {
+        "name": "Gain"
+      },
+      "bass": {
+        "name": "Bass"
+      },
+      "middle": {
+        "name": "Middle"
+      },
+      "treble": {
+        "name": "Treble"
+      },
+      "volume": {
+        "name": "Volume"
+      }
     },
     "select": {
-      "preset": { "name": "Preset" }
+      "preset": {
+        "name": "Preset"
+      }
     }
   }
 }

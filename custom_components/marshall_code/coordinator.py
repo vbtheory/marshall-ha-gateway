@@ -161,6 +161,9 @@ class MarshallCodeCoordinator:
             await self._client.disconnect()
         self.connected = False
 
+    def gatt_services(self) -> dict[str, list[str]]:
+        return self._client.gatt_services() if self._client else {}
+
     @staticmethod
     def _describe(info: bluetooth.BluetoothServiceInfoBleak | None) -> str:
         if info is None:

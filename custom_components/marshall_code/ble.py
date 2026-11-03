@@ -56,6 +56,15 @@ class MarshallCodeBLEClient:
     def is_connected(self) -> bool:
         return bool(self._client and self._client.is_connected)
 
+    def gatt_services(self) -> dict[str, list[str]]:
+        """Service UUID -> characteristic UUIDs of the live connection."""
+        if self._client is None or not self._client.is_connected:
+            return {}
+        return {
+            svc.uuid: [c.uuid for c in svc.characteristics]
+            for svc in self._client.services
+        }
+
     def update_ble_device(self, ble_device: BLEDevice) -> None:
         """Update the cached BLEDevice (address/rssi may change between
         advertisements seen by Home Assistant's bluetooth scanner)."""

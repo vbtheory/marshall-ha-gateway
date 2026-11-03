@@ -22,6 +22,7 @@ from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
 from homeassistant.const import CONF_ADDRESS
 
 from .const import DOMAIN, LOCAL_NAME_PREFIXES
+from .verify import async_verify_amp
 
 
 def _looks_like_marshall_code(service_info: BluetoothServiceInfoBleak) -> bool:
@@ -57,31 +58,42 @@ class MarshallCodeConfigFlow(ConfigFlow, domain=DOMAIN):
         """Confirm a bluetooth discovery."""
         assert self._discovery_info is not None
         discovery_info = self._discovery_info
+        errors: dict[str, str] = {}
         if user_input is not None:
-            return self.async_create_entry(
-                title=discovery_info.name,
-                data={CONF_ADDRESS: discovery_info.address},
-            )
+            error = await async_verify_amp(self.hass, discovery_info.address)
+            if error is None:
+                return self.async_create_entry(
+                    title=discovery_info.name,
+                    data={CONF_ADDRESS: discovery_info.address},
+                )
+            errors["base"] = error
+        else:
+            self._set_confirm_only()
 
-        self._set_confirm_only()
         placeholders = {"name": discovery_info.name}
         self.context["title_placeholders"] = placeholders
         return self.async_show_form(
-            step_id="bluetooth_confirm", description_placeholders=placeholders
+            step_id="bluetooth_confirm",
+            description_placeholders=placeholders,
+            errors=errors,
         )
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         """Handle the user picking a device manually."""
+        errors: dict[str, str] = {}
         if user_input is not None:
             address = user_input[CONF_ADDRESS]
             await self.async_set_unique_id(address, raise_on_progress=False)
             self._abort_if_unique_id_configured()
-            discovery_info = self._discovered_devices[address]
-            return self.async_create_entry(
-                title=discovery_info.name, data={CONF_ADDRESS: address}
-            )
+            error = await async_verify_amp(self.hass, address)
+            if error is None:
+                discovery_info = self._discovered_devices[address]
+                return self.async_create_entry(
+                    title=discovery_info.name, data={CONF_ADDRESS: address}
+                )
+            errors["base"] = error
 
         current_addresses = self._async_current_ids(include_ignore=False)
         for discovery_info in async_discovered_service_info(self.hass, False):
@@ -96,6 +108,7 @@ class MarshallCodeConfigFlow(ConfigFlow, domain=DOMAIN):
 
         return self.async_show_form(
             step_id="user",
+            errors=errors,
             data_schema=vol.Schema(
                 {
                     vol.Required(CONF_ADDRESS): vol.In(
