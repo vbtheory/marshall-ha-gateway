@@ -11,13 +11,11 @@
   "requirements": ["bleak>=0.21.0", "bleak-retry-connector>=3.4.0"],
   "bluetooth": [
     {
-      "local_name": "CODE V0*",
-      "service_uuid": "00001802-0000-1000-8000-00805f9b34fb"
+      "local_name": "CODE V0*"
     },
     {
-      "local_name": "CODE LTE*",
-      "service_uuid": "3923cf40-7316-429a-5c41-7e7dc49a8314"
+      "local_name": "CODE LTE*"
     }
   ],
-  "version": "0.1.0"
+  "version": "0.1.1"
 }
