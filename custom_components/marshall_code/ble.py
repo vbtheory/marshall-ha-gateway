@@ -66,11 +66,6 @@ class MarshallCodeBLEClient:
         if self.is_connected:
             return
 
-        def _handle_disconnect(_client: BleakClientWithServiceCache) -> None:
-            _LOGGER.debug("%s: disconnected", self.address)
-            if self._on_disconnect is not None:
-                self._on_disconnect()
-
         try:
             await self._connect_and_subscribe(use_cache=True)
         except BleakCharacteristicNotFoundError:
