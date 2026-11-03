@@ -10,6 +10,7 @@ from homeassistant.core import HomeAssistant
 
 from .ble import MarshallCodeBLEClient
 from .protocol import request_device_info
+from .scanners import get_ble_device, log_scanners
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -23,15 +24,16 @@ ERROR_MISSING_CHARACTERISTIC = "missing_characteristic"
 ERROR_NO_RESPONSE = "no_response"
 
 
-async def async_verify_amp(hass: HomeAssistant, address: str) -> str | None:
+async def async_verify_amp(
+    hass: HomeAssistant, address: str, source: str | None = None
+) -> str | None:
     """Connect to the amp and confirm it answers protocol requests.
 
     Returns None on success, otherwise an error key from strings.json.
     """
-    ble_device = bluetooth.async_ble_device_from_address(
-        hass, address, connectable=True
-    )
+    ble_device = get_ble_device(hass, address, source)
     if ble_device is None:
+        log_scanners(hass, address, "setup check: no connectable scanner has the amp")
         if bluetooth.async_last_service_info(hass, address, connectable=False):
             return ERROR_NOT_CONNECTABLE
         return ERROR_NOT_VISIBLE
@@ -41,6 +43,7 @@ async def async_verify_amp(hass: HomeAssistant, address: str) -> str | None:
         ble_device,
         on_message=lambda _data: reply.set(),
         on_disconnect=lambda: None,
+        source=source,
     )
     try:
         async with asyncio.timeout(CONNECT_TIMEOUT):
@@ -49,8 +52,10 @@ async def async_verify_amp(hass: HomeAssistant, address: str) -> str | None:
         async with asyncio.timeout(RESPONSE_TIMEOUT):
             await reply.wait()
     except BleakCharacteristicNotFoundError:
+        log_scanners(hass, address, "setup check: characteristic missing")
         return ERROR_MISSING_CHARACTERISTIC
     except TimeoutError:
+        log_scanners(hass, address, "setup check: timed out")
         return ERROR_NO_RESPONSE if client.is_connected else ERROR_CANNOT_CONNECT
     except Exception as err:  # noqa: BLE001
         _LOGGER.warning(
@@ -59,6 +64,7 @@ async def async_verify_amp(hass: HomeAssistant, address: str) -> str | None:
             type(err).__name__,
             err,
         )
+        log_scanners(hass, address, "setup check: connect failed")
         return ERROR_CANNOT_CONNECT
     finally:
         await client.disconnect()

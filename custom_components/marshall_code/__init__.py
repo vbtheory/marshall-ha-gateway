@@ -4,6 +4,7 @@ from __future__ import annotations
 from homeassistant.const import CONF_ADDRESS, Platform
 from homeassistant.core import HomeAssistant
 
+from .const import CONF_SOURCE
 from .coordinator import MarshallCodeConfigEntry, MarshallCodeCoordinator
 from .services import async_setup_services
 
@@ -26,7 +27,8 @@ async def async_setup_entry(
     hass: HomeAssistant, entry: MarshallCodeConfigEntry
 ) -> bool:
     """Set up a Marshall CODE amplifier from a config entry."""
-    coordinator = MarshallCodeCoordinator(hass, entry.data[CONF_ADDRESS])
+    source = entry.options.get(CONF_SOURCE, entry.data.get(CONF_SOURCE))
+    coordinator = MarshallCodeCoordinator(hass, entry.data[CONF_ADDRESS], source)
     entry.runtime_data = coordinator
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
@@ -35,8 +37,16 @@ async def async_setup_entry(
     # chance to subscribe to the update signal.
     await coordinator.async_setup()
     entry.async_on_unload(coordinator.async_unload)
+    entry.async_on_unload(entry.add_update_listener(_async_update_listener))
 
     return True
+
+
+async def _async_update_listener(
+    hass: HomeAssistant, entry: MarshallCodeConfigEntry
+) -> None:
+    """Reload when the selected controller changes."""
+    await hass.config_entries.async_reload(entry.entry_id)
 
 
 async def async_unload_entry(

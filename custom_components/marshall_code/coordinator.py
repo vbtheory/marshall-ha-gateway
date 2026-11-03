@@ -31,6 +31,7 @@ from .protocol import (
     request_active_preset,
     request_device_info,
 )
+from .scanners import get_ble_device, log_scanners
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -40,8 +41,11 @@ type MarshallCodeConfigEntry = ConfigEntry["MarshallCodeCoordinator"]
 class MarshallCodeCoordinator:
     """Owns the BLE connection and amp protocol state for one amp."""
 
-    def __init__(self, hass: HomeAssistant, address: str) -> None:
+    def __init__(
+        self, hass: HomeAssistant, address: str, source: str | None = None
+    ) -> None:
         self.hass = hass
+        self.source = source
         self.address = address
         self.state = AmpState()
         self._parser = ProtocolParser(self.state)
@@ -91,6 +95,8 @@ class MarshallCodeCoordinator:
         _LOGGER.debug(
             "%s: advertisement %s", self.address, self._describe(service_info)
         )
+        if self.source is not None and service_info.source != self.source:
+            return
         if self._client is not None:
             self._client.update_ble_device(service_info.device)
         if not self.connected and not self._connecting:
@@ -103,9 +109,7 @@ class MarshallCodeCoordinator:
         if self.connected or self._connecting:
             return self.connected
 
-        ble_device = bluetooth.async_ble_device_from_address(
-            self.hass, self.address, connectable=True
-        )
+        ble_device = get_ble_device(self.hass, self.address, self.source)
         if ble_device is None:
             any_info = bluetooth.async_last_service_info(
                 self.hass, self.address, connectable=False
@@ -116,6 +120,7 @@ class MarshallCodeCoordinator:
                 self.address,
                 self._describe(any_info),
             )
+            log_scanners(self.hass, self.address, "amp not visible to connect")
             return False
         _LOGGER.info(
             "%s: connecting via %s",
@@ -130,6 +135,7 @@ class MarshallCodeCoordinator:
                     ble_device,
                     on_message=self._handle_message,
                     on_disconnect=self._handle_disconnect,
+                    source=self.source,
                 )
             else:
                 self._client.update_ble_device(ble_device)
@@ -150,6 +156,7 @@ class MarshallCodeCoordinator:
                 err,
                 exc_info=_LOGGER.isEnabledFor(logging.DEBUG),
             )
+            log_scanners(self.hass, self.address, "connect failed")
             self.connected = False
             self._async_signal_update()
             return False

@@ -101,7 +101,9 @@ control service on the same address. This integration only uses BLE.
   the Marshall Gateway app) while testing; the amp may not advertise while
   connected elsewhere.
 - If the adapter keeps trying classic connections, use an ESPHome Bluetooth
-  proxy, which connects over BLE only.
+  proxy, which connects over BLE only. If the automatic connection fails
+  during setup you can pick the adapter/proxy to use; change it later via
+  the integration's **Configure** button.
 - Enable debug logging for `custom_components.marshall_code` and
   `bleak_retry_connector`; connect failures are logged as warnings with the
   underlying cause.
