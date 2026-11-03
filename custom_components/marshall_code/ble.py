@@ -82,7 +82,9 @@ class MarshallCodeBLEClient:
         on_message: MessageCallback,
         on_disconnect: DisconnectCallback | None = None,
         source: str | None = None,
+        pair: bool = False,
     ) -> None:
+        self._pair = pair
         self._source = source
         self._ble_device = ble_device
         self._on_message = on_message
@@ -135,6 +137,7 @@ class MarshallCodeBLEClient:
             self._ble_device.name or self.address,
             disconnected_callback=self._handle_client_disconnect,
             use_services_cache=use_cache,
+            pair=self._pair,
             ble_device_callback=lambda: self._ble_device,
         )
         self._client = client

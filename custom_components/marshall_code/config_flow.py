@@ -28,7 +28,7 @@ from homeassistant.config_entries import (
 from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import callback
 
-from .const import CONF_SOURCE, DOMAIN, LOCAL_NAME_PREFIXES
+from .const import CONF_PAIR, CONF_SOURCE, DOMAIN, LOCAL_NAME_PREFIXES
 from .scanners import connectable_scanner_choices
 from .verify import async_verify_amp
 
@@ -87,11 +87,14 @@ class MarshallCodeConfigFlow(ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             choice = user_input[CONF_SOURCE]
             source = None if choice == AUTOMATIC else choice
-            error = await async_verify_amp(self.hass, address, source)
+            pair = user_input.get(CONF_PAIR, False)
+            error = await async_verify_amp(self.hass, address, source, pair)
             if error is None:
-                data = {CONF_ADDRESS: address}
+                data: dict[str, Any] = {CONF_ADDRESS: address}
                 if source is not None:
                     data[CONF_SOURCE] = source
+                if pair:
+                    data[CONF_PAIR] = True
                 return self.async_create_entry(title=title, data=data)
             errors["base"] = error
 
@@ -101,7 +104,10 @@ class MarshallCodeConfigFlow(ConfigFlow, domain=DOMAIN):
             step_id="controller",
             errors=errors,
             data_schema=vol.Schema(
-                {vol.Required(CONF_SOURCE, default=AUTOMATIC): vol.In(choices)}
+                {
+                    vol.Required(CONF_SOURCE, default=AUTOMATIC): vol.In(choices),
+                    vol.Optional(CONF_PAIR, default=False): bool,
+                }
             ),
         )
 
@@ -222,9 +228,12 @@ class MarshallCodeOptionsFlow(OptionsFlow):
         address = self.config_entry.data[CONF_ADDRESS]
         if user_input is not None:
             choice = user_input[CONF_SOURCE]
-            return self.async_create_entry(
-                data={} if choice == AUTOMATIC else {CONF_SOURCE: choice}
-            )
+            options: dict[str, Any] = {}
+            if choice != AUTOMATIC:
+                options[CONF_SOURCE] = choice
+            if user_input.get(CONF_PAIR):
+                options[CONF_PAIR] = True
+            return self.async_create_entry(data=options)
 
         current = self.config_entry.options.get(
             CONF_SOURCE, self.config_entry.data.get(CONF_SOURCE, AUTOMATIC)
@@ -236,7 +245,15 @@ class MarshallCodeOptionsFlow(OptionsFlow):
         return self.async_show_form(
             step_id="init",
             data_schema=vol.Schema(
-                {vol.Required(CONF_SOURCE, default=current): vol.In(choices)}
+                {
+                    vol.Required(CONF_SOURCE, default=current): vol.In(choices),
+                    vol.Optional(
+                        CONF_PAIR,
+                        default=self.config_entry.options.get(
+                            CONF_PAIR, self.config_entry.data.get(CONF_PAIR, False)
+                        ),
+                    ): bool,
+                }
             ),
         )
 

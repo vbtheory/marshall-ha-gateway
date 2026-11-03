@@ -12,6 +12,8 @@ DOMAIN = "marshall_code"
 # Optional config/option key: Bluetooth scanner (adapter or proxy) source to
 # connect through. Absent means automatic selection by Home Assistant.
 CONF_SOURCE = "source"
+# Optional config/option key: pair (bond) with the amp when connecting.
+CONF_PAIR = "pair"
 
 # --- BLE identifiers -------------------------------------------------------
 

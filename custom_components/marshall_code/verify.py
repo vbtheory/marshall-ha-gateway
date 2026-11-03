@@ -25,7 +25,10 @@ ERROR_NO_RESPONSE = "no_response"
 
 
 async def async_verify_amp(
-    hass: HomeAssistant, address: str, source: str | None = None
+    hass: HomeAssistant,
+    address: str,
+    source: str | None = None,
+    pair: bool = False,
 ) -> str | None:
     """Connect to the amp and confirm it answers protocol requests.
 
@@ -44,6 +47,7 @@ async def async_verify_amp(
         on_message=lambda _data: reply.set(),
         on_disconnect=lambda: None,
         source=source,
+        pair=pair,
     )
     try:
         async with asyncio.timeout(CONNECT_TIMEOUT):

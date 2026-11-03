@@ -104,6 +104,10 @@ control service on the same address. This integration only uses BLE.
   proxy, which connects over BLE only. If the automatic connection fails
   during setup you can pick the adapter/proxy to use; change it later via
   the integration's **Configure** button.
+- If the amp only accepts bonded devices (it shows a pairing code on your
+  phone), enable **Pair (bond) with the amp when connecting** in the same
+  step/**Configure** dialog. Pairing happens through the selected adapter or
+  ESPHome proxy, so no `bluetoothctl` is needed.
 - Enable debug logging for `custom_components.marshall_code` and
   `bleak_retry_connector`; connect failures are logged as warnings with the
   underlying cause.
