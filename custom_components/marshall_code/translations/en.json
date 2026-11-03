@@ -10,6 +10,12 @@
         "data": {
           "address": "Device"
         }
+      },
+      "manual": {
+        "description": "Enter the amp's Bluetooth MAC address (e.g. 2C:6B:7D:81:98:57). The amp must be powered on and within range of an adapter or Bluetooth proxy.",
+        "data": {
+          "address": "MAC address"
+        }
       }
     },
     "abort": {
@@ -23,7 +29,8 @@
       "not_connectable": "The amp is only seen by a passive scanner. Set the adapter to Active scanning, or use an ESPHome Bluetooth proxy with `active: true`.",
       "cannot_connect": "Couldn't open a Bluetooth connection to the amp. Make sure nothing else (e.g. the Marshall Gateway app) is connected to it, then try again.",
       "missing_characteristic": "Connected, but the amp doesn't expose the expected control characteristics. Enable debug logging and check the 'GATT services' warning.",
-      "no_response": "Connected, but the amp didn't answer. Power-cycle the amp and try again."
+      "no_response": "Connected, but the amp didn't answer. Power-cycle the amp and try again.",
+      "invalid_address": "That isn't a valid MAC address (expected format AA:BB:CC:DD:EE:FF)."
     }
   },
   "services": {

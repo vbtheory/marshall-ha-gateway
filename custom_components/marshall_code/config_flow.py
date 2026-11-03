@@ -11,6 +11,7 @@ Two ways in:
 """
 from __future__ import annotations
 
+import re
 from typing import Any
 
 import probatio as vol
@@ -23,6 +24,9 @@ from homeassistant.const import CONF_ADDRESS
 
 from .const import DOMAIN, LOCAL_NAME_PREFIXES
 from .verify import async_verify_amp
+
+MANUAL_ENTRY = "__manual__"
+MAC_RE = re.compile(r"^([0-9A-F]{2}:){5}[0-9A-F]{2}$")
 
 
 def _looks_like_marshall_code(service_info: BluetoothServiceInfoBleak) -> bool:
@@ -81,10 +85,12 @@ class MarshallCodeConfigFlow(ConfigFlow, domain=DOMAIN):
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Handle the user picking a device manually."""
+        """Pick a discovered amp, or choose to enter a MAC address."""
         errors: dict[str, str] = {}
         if user_input is not None:
             address = user_input[CONF_ADDRESS]
+            if address == MANUAL_ENTRY:
+                return await self.async_step_manual()
             await self.async_set_unique_id(address, raise_on_progress=False)
             self._abort_if_unique_id_configured()
             error = await async_verify_amp(self.hass, address)
@@ -104,20 +110,47 @@ class MarshallCodeConfigFlow(ConfigFlow, domain=DOMAIN):
             self._discovered_devices[discovery_info.address] = discovery_info
 
         if not self._discovered_devices:
-            return self.async_abort(reason="no_devices_found")
+            return await self.async_step_manual()
 
+        options = {
+            address: f"{info.name} ({address})"
+            for address, info in self._discovered_devices.items()
+        }
+        options[MANUAL_ENTRY] = "Enter MAC address manually"
         return self.async_show_form(
             step_id="user",
             errors=errors,
-            data_schema=vol.Schema(
-                {
-                    vol.Required(CONF_ADDRESS): vol.In(
-                        {
-                            address: f"{discovery_info.name} ({address})"
-                            for address, discovery_info in self._discovered_devices.items()
-                        }
+            data_schema=vol.Schema({vol.Required(CONF_ADDRESS): vol.In(options)}),
+        )
+
+    async def async_step_manual(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Enter the amp's Bluetooth MAC address by hand."""
+        errors: dict[str, str] = {}
+        default = ""
+        if user_input is not None:
+            default = user_input[CONF_ADDRESS]
+            address = default.strip().upper().replace("-", ":")
+            if not MAC_RE.match(address):
+                errors["base"] = "invalid_address"
+            else:
+                await self.async_set_unique_id(address, raise_on_progress=False)
+                self._abort_if_unique_id_configured()
+                error = await async_verify_amp(self.hass, address)
+                if error is None:
+                    info = self._discovered_devices.get(address)
+                    return self.async_create_entry(
+                        title=info.name if info else f"Marshall CODE {address}",
+                        data={CONF_ADDRESS: address},
                     )
-                }
+                errors["base"] = error
+
+        return self.async_show_form(
+            step_id="manual",
+            errors=errors,
+            data_schema=vol.Schema(
+                {vol.Required(CONF_ADDRESS, default=default): str}
             ),
         )
 
