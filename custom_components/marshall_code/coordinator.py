@@ -119,8 +119,14 @@ class MarshallCodeCoordinator:
             await self._client.send(request_device_info())
             await self._client.send(request_active_preset())
             return True
-        except Exception:
-            _LOGGER.exception("%s: failed to connect", self.address)
+        except Exception as err:
+            _LOGGER.warning(
+                "%s: failed to connect (%s: %s)",
+                self.address,
+                type(err).__name__,
+                err,
+                exc_info=_LOGGER.isEnabledFor(logging.DEBUG),
+            )
             self.connected = False
             self._async_signal_update()
             return False
