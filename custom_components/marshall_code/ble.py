@@ -28,7 +28,6 @@ if TYPE_CHECKING:
 _LOGGER = logging.getLogger(__name__)
 
 DISCONNECT_DELAY = 10
-MTU_SIZE = 512
 
 MessageCallback = Callable[[bytes], None]
 DisconnectCallback = Callable[[], None]
@@ -63,8 +62,7 @@ class MarshallCodeBLEClient:
         self._ble_device = ble_device
 
     async def connect(self) -> None:
-        """Connect, discover services, subscribe to notifications and
-        request the amp's MTU, mirroring `AmpManager`'s connect sequence."""
+        """Connect, discover services, and subscribe to notifications."""
         if self.is_connected:
             return
 
@@ -82,11 +80,6 @@ class MarshallCodeBLEClient:
             ble_device_callback=lambda: self._ble_device,
         )
         self._client = client
-
-        try:
-            await client.request_mtu(MTU_SIZE)
-        except (BleakError, NotImplementedError) as err:
-            _LOGGER.debug("%s: MTU request failed/unsupported: %s", self.address, err)
 
         self._sysex_buffer = bytearray()
         await client.start_notify(NOTIFY_UUID, self._notification_handler)
