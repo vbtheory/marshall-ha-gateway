@@ -31,6 +31,7 @@ from .protocol import (
     request_active_preset,
     request_device_info,
 )
+from .scanners import log_scanners
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -116,6 +117,7 @@ class MarshallCodeCoordinator:
                 self.address,
                 self._describe(any_info),
             )
+            log_scanners(self.hass, self.address, "amp not visible to connect")
             return False
         _LOGGER.info(
             "%s: connecting via %s",
@@ -150,6 +152,7 @@ class MarshallCodeCoordinator:
                 err,
                 exc_info=_LOGGER.isEnabledFor(logging.DEBUG),
             )
+            log_scanners(self.hass, self.address, "connect failed")
             self.connected = False
             self._async_signal_update()
             return False
