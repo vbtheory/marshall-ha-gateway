@@ -16,6 +16,7 @@ long as the amp is in range. This coordinator:
 from __future__ import annotations
 
 import logging
+import time
 
 from homeassistant.components import bluetooth
 from homeassistant.config_entries import ConfigEntry
@@ -65,6 +66,11 @@ class MarshallCodeCoordinator:
         service_info = bluetooth.async_last_service_info(
             self.hass, self.address, connectable=True
         )
+        _LOGGER.info(
+            "%s: setup; last connectable advertisement: %s",
+            self.address,
+            self._describe(service_info),
+        )
         if service_info is not None:
             await self.async_connect()
 
@@ -82,6 +88,9 @@ class MarshallCodeCoordinator:
     ) -> None:
         """Called by HA's bluetooth integration whenever an advertisement
         from this amp is observed."""
+        _LOGGER.debug(
+            "%s: advertisement %s", self.address, self._describe(service_info)
+        )
         if self._client is not None:
             self._client.update_ble_device(service_info.device)
         if not self.connected and not self._connecting:
@@ -98,8 +107,21 @@ class MarshallCodeCoordinator:
             self.hass, self.address, connectable=True
         )
         if ble_device is None:
-            _LOGGER.debug("%s: not currently visible, cannot connect", self.address)
+            any_info = bluetooth.async_last_service_info(
+                self.hass, self.address, connectable=False
+            )
+            _LOGGER.info(
+                "%s: no connectable scanner has the amp; "
+                "last non-connectable advertisement: %s",
+                self.address,
+                self._describe(any_info),
+            )
             return False
+        _LOGGER.info(
+            "%s: connecting via %s",
+            self.address,
+            ble_device.details,
+        )
 
         self._connecting = True
         try:
@@ -113,6 +135,7 @@ class MarshallCodeCoordinator:
                 self._client.update_ble_device(ble_device)
 
             await self._client.connect()
+            _LOGGER.info("%s: GATT connected", self.address)
             self.connected = True
             self._async_signal_update()
 
@@ -138,8 +161,20 @@ class MarshallCodeCoordinator:
             await self._client.disconnect()
         self.connected = False
 
+    @staticmethod
+    def _describe(info: bluetooth.BluetoothServiceInfoBleak | None) -> str:
+        if info is None:
+            return "none"
+        return (
+            f"name={info.name!r} rssi={info.rssi} source={info.source} "
+            f"connectable={info.connectable} uuids={info.service_uuids} "
+            f"mfr={list(info.manufacturer_data)} "
+            f"age={time.monotonic() - info.time:.0f}s"
+        )
+
     @callback
     def _handle_disconnect(self) -> None:
+        _LOGGER.info("%s: disconnected", self.address)
         self.connected = False
         self._async_signal_update()
 
