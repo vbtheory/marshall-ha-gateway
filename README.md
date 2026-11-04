@@ -113,6 +113,13 @@ control service on the same address. This integration only uses BLE.
   choose the classic link. It is skipped silently on older BlueZ or when the
   amp is only known as a classic device; the log line
   `set BlueZ PreferredBearer=le` confirms it applied.
+- Verified manually with `bluetoothctl` on hci0: the amp connected over LE
+  only after it had been bonded over classic Bluetooth once. In
+  `bluetoothctl` run `agent on`, `default-agent`, `scan on`, then
+  `pair <address>` with the amp in pairing mode and answer `yes` to the
+  prompts; afterwards the amp shows `Paired: yes`. Don't `remove` it
+  afterwards. The integration then keeps `PreferredBearer` on `le` so GATT
+  works while the classic link stays up.
 - Enable debug logging for `custom_components.marshall_code` and
   `bleak_retry_connector`; connect failures are logged as warnings with the
   underlying cause.
