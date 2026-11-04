@@ -14,6 +14,7 @@ from bleak.backends.device import BLEDevice
 from bleak.exc import BleakCharacteristicNotFoundError, BleakError
 from bleak_retry_connector import BleakClientWithServiceCache, establish_connection
 
+from .bluez import async_prefer_le_bearer
 from .const import (
     MIDI_SERVICE_UUID,
     NOTIFY_UUID,
@@ -131,6 +132,7 @@ class MarshallCodeBLEClient:
             await self._connect_and_subscribe(use_cache=False)
 
     async def _connect_and_subscribe(self, *, use_cache: bool) -> None:
+        await async_prefer_le_bearer(self.address)
         client = await establish_connection(
             _pinned_client_class(self._source),
             self._ble_device,

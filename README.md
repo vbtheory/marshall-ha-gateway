@@ -108,6 +108,11 @@ control service on the same address. This integration only uses BLE.
   phone), enable **Pair (bond) with the amp when connecting** in the same
   step/**Configure** dialog. Pairing happens through the selected adapter or
   ESPHome proxy, so no `bluetoothctl` is needed.
+- On BlueZ 5.80+ (Home Assistant OS 16+) the integration sets the amp's
+  experimental `PreferredBearer` to `le` before connecting, so BlueZ doesn't
+  choose the classic link. It is skipped silently on older BlueZ or when the
+  amp is only known as a classic device; the log line
+  `set BlueZ PreferredBearer=le` confirms it applied.
 - Enable debug logging for `custom_components.marshall_code` and
   `bleak_retry_connector`; connect failures are logged as warnings with the
   underlying cause.
