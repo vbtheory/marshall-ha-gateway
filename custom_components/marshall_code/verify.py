@@ -10,7 +10,7 @@ from homeassistant.core import HomeAssistant
 
 from .ble import MarshallCodeBLEClient
 from .protocol import request_device_info
-from .scanners import get_ble_device, log_scanners
+from .scanners import async_wait_for_fresh_advert, get_ble_device, log_scanners
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -34,6 +34,7 @@ async def async_verify_amp(
 
     Returns None on success, otherwise an error key from strings.json.
     """
+    await async_wait_for_fresh_advert(hass, address, source)
     ble_device = get_ble_device(hass, address, source)
     if ble_device is None:
         log_scanners(hass, address, "setup check: no connectable scanner has the amp")
