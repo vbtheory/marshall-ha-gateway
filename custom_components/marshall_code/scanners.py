@@ -2,8 +2,13 @@
 from __future__ import annotations
 
 import logging
+import time
 
 from homeassistant.components import bluetooth
+from homeassistant.components.bluetooth import (
+    BluetoothCallbackMatcher,
+    BluetoothScanningMode,
+)
 from homeassistant.core import HomeAssistant
 
 _LOGGER = logging.getLogger(__name__)
@@ -75,3 +80,38 @@ def get_ble_device(hass: HomeAssistant, address: str, source: str | None):
         if device.scanner.source == source:
             return device.ble_device
     return None
+
+
+FRESH_ADVERT_AGE = 30
+ADVERT_WAIT_TIMEOUT = 30
+
+
+async def async_wait_for_fresh_advert(
+    hass: HomeAssistant, address: str, source: str | None
+) -> None:
+    """Wait for a live connectable advertisement from the amp.
+
+    HA keeps the last advertisement for a while, so a cached entry does not
+    mean the amp is on and in range right now. Returns when one arrives (or
+    the cached one is recent enough); on timeout it just returns and the
+    caller falls back to whatever is cached.
+    """
+    info = bluetooth.async_last_service_info(hass, address, connectable=True)
+    if (
+        info is not None
+        and (source is None or info.source == source)
+        and time.monotonic() - info.time < FRESH_ADVERT_AGE
+    ):
+        return
+    try:
+        await bluetooth.async_process_advertisements(
+            hass,
+            lambda service_info: source is None or service_info.source == source,
+            BluetoothCallbackMatcher(address=address, connectable=True),
+            BluetoothScanningMode.ACTIVE,
+            ADVERT_WAIT_TIMEOUT,
+        )
+    except TimeoutError:
+        _LOGGER.debug(
+            "%s: no fresh advertisement within %ss", address, ADVERT_WAIT_TIMEOUT
+        )
