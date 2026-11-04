@@ -9,6 +9,7 @@ from homeassistant.components import bluetooth
 from homeassistant.core import HomeAssistant
 
 from .ble import MarshallCodeBLEClient
+from .bond import async_bond_classic
 from .protocol import request_device_info
 from .scanners import async_wait_for_fresh_advert, get_ble_device, log_scanners
 
@@ -34,6 +35,10 @@ async def async_verify_amp(
 
     Returns None on success, otherwise an error key from strings.json.
     """
+    if pair and (source is None or _is_local_adapter(hass, source)):
+        # HA's scanners only do LE scans, and the amp may be visible only to a
+        # classic scan, so bond first; the LE advert appears afterwards.
+        await async_bond_classic(address)
     await async_wait_for_fresh_advert(hass, address, source)
     ble_device = get_ble_device(hass, address, source)
     if ble_device is None:
@@ -74,3 +79,8 @@ async def async_verify_amp(
     finally:
         await client.disconnect()
     return None
+
+
+def _is_local_adapter(hass: HomeAssistant, source: str) -> bool:
+    scanner = bluetooth.async_scanner_by_source(hass, source)
+    return scanner is not None and getattr(scanner, "adapter", None) is not None
