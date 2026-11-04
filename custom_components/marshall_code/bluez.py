@@ -56,9 +56,6 @@ async def async_prefer_le_bearer(address: str) -> bool:
             if props["PreferredBearer"].value == "le":
                 done = True
                 continue
-            if props["Connected"].value:
-                _LOGGER.debug("%s: %s connected; not changing bearer", address, path)
-                continue
             device = bus.get_proxy_object(
                 BLUEZ_SERVICE, path, await bus.introspect(BLUEZ_SERVICE, path)
             )
