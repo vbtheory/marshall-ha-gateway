@@ -15,6 +15,7 @@ from bleak.exc import BleakCharacteristicNotFoundError, BleakError
 from bleak_retry_connector import BleakClientWithServiceCache, establish_connection
 
 from .bluez import async_prefer_le_bearer
+from .bond import async_bond_classic
 from .const import (
     MIDI_SERVICE_UUID,
     NOTIFY_UUID,
@@ -86,6 +87,7 @@ class MarshallCodeBLEClient:
         pair: bool = False,
     ) -> None:
         self._pair = pair
+        self._bleak_pair = pair
         self._source = source
         self._ble_device = ble_device
         self._on_message = on_message
@@ -120,6 +122,12 @@ class MarshallCodeBLEClient:
         if self.is_connected:
             return
 
+        # Bond over classic Bluetooth through the local BlueZ (needed before
+        # BlueZ will use the amp's BLE service); if that isn't possible
+        # (e.g. an ESPHome proxy), fall back to bleak's pairing.
+        self._bleak_pair = self._pair
+        if self._pair and await async_bond_classic(self.address):
+            self._bleak_pair = False
         try:
             await self._connect_and_subscribe(use_cache=True)
         except BleakCharacteristicNotFoundError:
@@ -139,7 +147,7 @@ class MarshallCodeBLEClient:
             self._ble_device.name or self.address,
             disconnected_callback=self._handle_client_disconnect,
             use_services_cache=use_cache,
-            pair=self._pair,
+            pair=self._bleak_pair,
             ble_device_callback=lambda: self._ble_device,
         )
         self._client = client
